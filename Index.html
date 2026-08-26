@@ -1,1 +1,1546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Two Itineraries — Bosnia & Romania</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..700&family=Source+Sans+3:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<style>
+  :root{
+    --ink:#3B2A1E;
+    --ink-soft:#4A3626;
+    --stone:#F1E2C6;
+    --paper:#FBF3E6;
+    --river:#E2762F;
+    --river-deep:#B85C1F;
+    --copper:#C9821F;
+    --brick:#A24E2E;
+    --line: rgba(59,42,30,0.14);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Source Sans 3', sans-serif;
+    font-size:17px;
+    line-height:1.55;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  .mono{font-family:'IBM Plex Mono', monospace;}
+  a{color:inherit;}
+  .wrap{max-width:920px;margin:0 auto;padding:0 24px;}
 
+  /* TRIP SWITCHER (top-level tabs) */
+  .trip-switcher{
+    position:sticky;top:0;z-index:70;
+    background:var(--stone);
+    border-bottom:1px solid var(--line);
+  }
+  .trip-switcher .wrap{
+    display:flex;align-items:center;gap:0;
+    padding:0 24px;
+  }
+  .trip-switcher .label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+    color:rgba(59,42,30,0.45);
+    margin-right:18px;
+    flex-shrink:0;
+  }
+  .trip-tab{
+    background:none;border:none;cursor:pointer;
+    font-family:'Fraunces',serif;font-size:15px;font-weight:600;
+    color:rgba(59,42,30,0.5);
+    padding:16px 18px 14px;
+    border-bottom:2px solid transparent;
+    transition:color .2s, border-color .2s;
+  }
+  .trip-tab:hover{color:rgba(59,42,30,0.8);}
+  .trip-tab.active{color:var(--ink);border-bottom-color:var(--river);}
+
+  /* SECTION NAV (per-trip) */
+  nav.subnav{
+    position:sticky;top:49px;z-index:50;
+    background:rgba(251,243,230,0.92);
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);
+  }
+  nav.subnav .wrap{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 24px;
+  }
+  nav.subnav .brand{
+    font-family:'Fraunces', serif;
+    color:var(--ink);
+    font-size:15px;
+    letter-spacing:0.03em;
+  }
+  nav.subnav ul{
+    list-style:none;display:flex;gap:22px;margin:0;padding:0;
+  }
+  nav.subnav a{
+    color:rgba(59,42,30,0.7);
+    text-decoration:none;
+    font-size:13px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    font-weight:500;
+    transition:color .2s;
+  }
+  nav.subnav a:hover, nav.subnav a:focus-visible{color:var(--river-deep);outline:none;}
+
+  /* PANELS */
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  /* HERO */
+  header.hero{
+    background:
+      radial-gradient(ellipse at 20% -10%, rgba(226,118,47,0.18), transparent 55%),
+      var(--paper);
+    color:var(--ink);
+    padding:64px 24px 64px;
+    position:relative;
+    overflow:hidden;
+    border-bottom:1px solid var(--line);
+  }
+  header.hero .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--river-deep);
+    margin-bottom:18px;
+  }
+  header.hero h1{
+    font-size:clamp(2.4rem, 6vw, 4rem);
+    color:var(--ink);
+    max-width:13ch;
+    line-height:1.04;
+  }
+  header.hero p.sub{
+    max-width:46ch;
+    margin-top:20px;
+    font-size:1.15rem;
+    color:rgba(59,42,30,0.72);
+  }
+  /* boarding-pass style route strip */
+  .route-strip{
+    margin-top:44px;
+    display:flex;
+    align-items:center;
+    gap:0;
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:18px 22px;
+    max-width:560px;
+    position:relative;
+    box-shadow:0 4px 20px rgba(59,42,30,0.06);
+  }
+  .route-strip .stop{flex:0 0 auto;}
+  .route-strip .city{font-family:'Fraunces',serif;font-size:1.3rem;color:var(--ink);}
+  .route-strip .code{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--river-deep);letter-spacing:.08em;}
+  .route-strip .path{
+    flex:1;
+    display:flex;align-items:center;gap:8px;
+    margin:0 16px;
+    color:rgba(59,42,30,0.4);
+  }
+  .route-strip .path .track{flex:1;height:1px;background:rgba(59,42,30,0.18);position:relative;}
+  .route-strip .path .track::after{
+    content:'✈';
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-55%);
+    font-size:12px;color:var(--river);
+  }
+  .route-strip .dur{font-family:'IBM Plex Mono',monospace;font-size:11px;text-align:center;color:rgba(59,42,30,0.5);}
+
+  /* ARCH — the signature motif, echoing Mostar's Stari Most / Transylvanian gatehouses */
+  .arch-divider{
+    height:46px;
+    background:var(--paper);
+    position:relative;
+    margin-top:-2px;
+  }
+  .arch-divider svg{display:block;width:100%;height:100%;}
+
+  section{padding:64px 24px;}
+  section.alt{background:var(--stone);}
+  .section-head{margin-bottom:36px;max-width:640px;}
+  .section-head .kicker{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--river-deep);margin-bottom:10px;display:block;
+  }
+  .section-head h2{font-size:clamp(1.7rem,3.6vw,2.3rem);}
+  .section-head p{margin-top:10px;color:rgba(59,42,30,0.68);font-size:1.02rem;max-width:56ch;}
+
+  /* FLIGHTS */
+  .flight-card{
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:28px;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:24px;
+  }
+  .alt .flight-card{background:#fff;}
+  .flight-card .item{border-left:2px solid var(--river);padding-left:16px;}
+  .flight-card .item .label{font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:rgba(59,42,30,0.5);}
+  .flight-card .item .value{font-size:1.05rem;margin-top:4px;font-weight:600;}
+  .flight-note{
+    margin-top:20px;padding:16px 18px;background:rgba(226,118,47,0.08);
+    border-radius:10px;font-size:0.96rem;border:1px solid rgba(226,118,47,0.2);
+  }
+
+  /* WEATHER */
+  .weather-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+  .weather-card{
+    background:#fff;color:var(--ink);
+    border:1px solid var(--line);
+    border-radius:16px;padding:22px 20px;
+  }
+  .alt .weather-card{background:var(--paper);}
+  .weather-card h3{font-size:1.1rem;color:var(--ink);margin-bottom:4px;}
+  .weather-card .tag{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--river-deep);text-transform:uppercase;letter-spacing:.08em;}
+  .temp-row{display:flex;justify-content:space-between;margin-top:16px;font-size:.9rem;}
+  .temp-row .city{color:rgba(59,42,30,0.55);}
+  .temp-row .range{font-family:'IBM Plex Mono',monospace;color:var(--river-deep);font-weight:600;}
+  .weather-card .note{margin-top:14px;font-size:0.88rem;color:rgba(59,42,30,0.65);line-height:1.5;}
+  .best-badge{
+    display:inline-block;margin-top:14px;font-family:'IBM Plex Mono',monospace;
+    font-size:10px;letter-spacing:.06em;text-transform:uppercase;
+    background:var(--river);color:#fff;padding:4px 10px;border-radius:20px;
+  }
+
+  /* STAY */
+  .stay-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;}
+  .stay-card{
+    background:var(--paper);border:1px solid var(--line);border-radius:18px;
+    overflow:hidden;
+  }
+  .alt .stay-card{background:#fff;}
+  .stay-card .top{
+    background:var(--ink-soft);color:var(--stone);padding:22px 24px;
+  }
+  .stay-card .top .kicker{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--river);letter-spacing:.08em;text-transform:uppercase;}
+  .stay-card .top h3{color:#fff;font-size:1.4rem;margin-top:6px;}
+  .stay-card .body{padding:22px 24px;}
+  .stay-card .body p{margin:0 0 12px;color:rgba(59,42,30,0.75);font-size:.98rem;}
+  .stay-card .why{
+    font-size:.9rem;color:var(--brick);font-weight:600;margin-top:14px;
+    border-top:1px dashed var(--line);padding-top:14px;
+  }
+
+  /* MAP */
+  .map-card{
+    border-radius:18px;
+    overflow:hidden;
+    border:1px solid var(--line);
+    box-shadow:0 4px 24px rgba(59,42,30,0.08);
+  }
+  .map-container{
+    height:420px;
+    width:100%;
+    background:var(--stone);
+  }
+  .trip-marker{
+    background:var(--river);
+    color:#fff;
+    border:2px solid var(--paper);
+    border-radius:50%;
+    width:28px;height:28px;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;font-weight:600;
+    box-shadow:0 2px 6px rgba(59,42,30,0.35);
+  }
+  .trip-marker.optional{
+    background:var(--paper);
+    color:var(--river-deep);
+    border:2px dashed var(--river);
+  }
+  .leaflet-popup-content-wrapper{
+    border-radius:10px;
+    font-family:'Source Sans 3',sans-serif;
+  }
+  .leaflet-popup-content strong{font-family:'Fraunces',serif;font-size:1.02rem;}
+  .leaflet-popup-content .pop-day{
+    font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;
+    letter-spacing:.05em;color:var(--river-deep);display:block;margin:4px 0;
+  }
+  .map-legend{
+    display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;
+  }
+  .map-legend .stop{
+    display:flex;align-items:center;gap:8px;
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:20px;
+    padding:6px 14px 6px 6px;
+    font-size:.88rem;
+  }
+  .alt .map-legend .stop{background:#fff;}
+  .map-legend .stop .num{
+    width:22px;height:22px;border-radius:50%;
+    background:var(--river);color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:600;
+    flex-shrink:0;
+  }
+  .map-legend .stop.optional .num{
+    background:var(--paper);color:var(--river-deep);border:1.5px dashed var(--river);
+  }
+
+  /* GETTING AROUND — compare card */
+  .compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  .compare-card{
+    border-radius:16px;padding:24px;
+    border:1px solid var(--line);
+    background:var(--paper);
+  }
+  .alt .compare-card{background:#fff;}
+  .compare-card.highlight{
+    background:rgba(226,118,47,0.07);color:var(--ink);border:1.5px solid var(--river);
+  }
+  .compare-card h3{font-size:1.15rem;margin-bottom:4px;}
+  .compare-card.highlight h3{color:var(--river-deep);}
+  .compare-card .kicker{font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--river-deep);}
+  .compare-card.highlight .kicker{color:var(--river-deep);}
+  .compare-card ul{margin:16px 0 0;padding-left:18px;font-size:.94rem;line-height:1.65;}
+  .compare-card.highlight ul{color:rgba(59,42,30,0.8);}
+  .compare-card:not(.highlight) ul{color:rgba(59,42,30,0.72);}
+
+  .beach-card{
+    margin-top:24px;
+    background:linear-gradient(120deg, rgba(226,118,47,0.1), rgba(226,118,47,0.02));
+    border:1px solid rgba(226,118,47,0.25);
+    border-radius:16px;
+    padding:26px 28px;
+  }
+  .beach-card .kicker{font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--river-deep);}
+  .beach-card h3{font-size:1.3rem;margin:6px 0 14px;}
+  .beach-compare{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:16px;}
+  .beach-compare .opt{background:rgba(255,255,255,0.6);border-radius:12px;padding:16px 18px;border:1px solid rgba(226,118,47,0.18);}
+  .beach-compare .opt h4{font-family:'Fraunces',serif;font-size:1.05rem;margin:0 0 6px;font-weight:600;}
+  .beach-compare .opt p{margin:0;font-size:.92rem;color:rgba(59,42,30,0.72);}
+  .beach-compare .opt .meta{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--river-deep);text-transform:uppercase;letter-spacing:.05em;display:block;margin-bottom:8px;}
+
+  /* DO — day timeline with arch markers */
+  .timeline{position:relative;padding-left:4px;}
+  .day{
+    display:grid;
+    grid-template-columns:64px 1fr;
+    gap:20px;
+    position:relative;
+    padding-bottom:6px;
+  }
+  .day:not(:last-child)::before{
+    content:'';
+    position:absolute;
+    left:31px;top:64px;bottom:-6px;
+    width:2px;
+    background:repeating-linear-gradient(to bottom, var(--river) 0 4px, transparent 4px 9px);
+  }
+  .day-arch{
+    width:62px;height:62px;
+    border-radius:50% 50% 4px 4px;
+    background:var(--river);
+    display:flex;align-items:center;justify-content:center;
+    flex-direction:column;
+    color:#fff;
+    flex-shrink:0;
+    box-shadow:0 3px 10px rgba(226,118,47,0.3);
+  }
+  .day-arch .n{font-family:'IBM Plex Mono',monospace;font-size:10px;color:rgba(255,255,255,0.8);letter-spacing:.05em;}
+  .day-arch .d{font-family:'Fraunces',serif;font-size:1.3rem;color:#fff;line-height:1;}
+  .day-card{
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:20px 22px;
+    margin-bottom:26px;
+  }
+  .alt .day-card{background:#fff;}
+  .day-card h3{font-size:1.2rem;margin-bottom:4px;}
+  .day-card .loc{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--river-deep);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;display:block;}
+  .day-card p{margin:0;color:rgba(59,42,30,0.78);font-size:.98rem;}
+  .tags{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+  .tags span{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;
+    padding:4px 10px;border-radius:20px;
+    background:rgba(140,74,58,0.1);color:var(--brick);
+    border:1px solid rgba(140,74,58,0.25);
+  }
+  .tags span.river{background:rgba(226,118,47,0.1);color:var(--river-deep);border-color:rgba(226,118,47,0.3);}
+  .tags span.copper{background:rgba(181,101,29,0.1);color:var(--copper);border-color:rgba(181,101,29,0.3);}
+
+  /* ACCOMMODATION OPTION LIST */
+  .option-group{margin-bottom:34px;}
+  .option-group:last-child{margin-bottom:0;}
+  .option-group h3{
+    font-size:1.05rem;
+    color:var(--river-deep);
+    margin-bottom:16px;
+    display:flex;align-items:center;gap:10px;
+  }
+  .option-group h3::after{
+    content:'';flex:1;height:1px;background:var(--line);
+  }
+  .option-item{
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:20px 22px;
+    margin-bottom:14px;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .alt .option-item{background:#fff;}
+  .option-item .row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+  .option-item h4{font-family:'Fraunces',serif;font-size:1.15rem;font-weight:600;margin:0;}
+  .option-item .meta-tags{display:flex;gap:6px;flex-wrap:wrap;}
+  .option-item .meta-tags span{
+    font-family:'IBM Plex Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.05em;
+    padding:3px 9px;border-radius:20px;
+    background:rgba(226,118,47,0.1);color:var(--river-deep);
+    border:1px solid rgba(226,118,47,0.25);
+  }
+  .option-item .meta-tags span.used{
+    background:rgba(181,101,29,0.12);color:var(--copper);border-color:rgba(181,101,29,0.3);
+  }
+  .option-item p{margin:0;font-size:.95rem;color:rgba(59,42,30,0.72);}
+
+  /* NOTES & LINKS */
+  .notes-card, .links-card{
+    background:var(--paper);border:1px solid var(--line);border-radius:16px;
+    padding:24px 26px;margin-bottom:20px;
+  }
+  .alt .notes-card, .alt .links-card{background:#fff;}
+  .notes-label{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;text-transform:uppercase;
+    letter-spacing:.08em;color:var(--river-deep);display:block;margin-bottom:12px;
+  }
+  .notes-textarea{
+    width:100%;min-height:140px;
+    border:1px solid var(--line);border-radius:10px;
+    padding:14px 16px;
+    font-family:'Source Sans 3',sans-serif;font-size:.98rem;color:var(--ink);
+    background:var(--paper);
+    resize:vertical;
+  }
+  .alt .notes-textarea{background:var(--stone);}
+  .notes-textarea:focus{outline:2px solid var(--river);outline-offset:1px;}
+  .notes-status{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;color:rgba(59,42,30,0.4);
+    margin-top:8px;height:14px;
+  }
+  .link-form{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+  .link-form input{
+    flex:1;min-width:160px;
+    border:1px solid var(--line);border-radius:8px;
+    padding:10px 12px;font-family:'Source Sans 3',sans-serif;font-size:.94rem;
+    background:var(--paper);color:var(--ink);
+  }
+  .alt .link-form input{background:var(--stone);}
+  .link-form button{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;text-transform:uppercase;letter-spacing:.05em;
+    background:var(--river-deep);color:#fff;border:none;border-radius:8px;
+    padding:10px 20px;cursor:pointer;transition:background .2s;
+  }
+  .link-form button:hover{background:var(--river);}
+  .link-list{list-style:none;margin:0;padding:0;}
+  .link-list li{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:12px 14px;border-radius:10px;
+    background:rgba(226,118,47,0.06);
+    border:1px solid rgba(226,118,47,0.15);
+    margin-bottom:8px;
+  }
+  .link-list li a{color:var(--river-deep);font-weight:600;text-decoration:none;font-size:.95rem;}
+  .link-list li a:hover{text-decoration:underline;}
+  .link-list li .muted{font-family:'IBM Plex Mono',monospace;font-size:11px;color:rgba(59,42,30,0.4);}
+  .link-list li button{
+    background:none;border:none;cursor:pointer;color:var(--brick);
+    font-size:16px;line-height:1;padding:2px 6px;flex-shrink:0;
+  }
+  .link-empty{font-size:.9rem;color:rgba(59,42,30,0.45);font-style:italic;}
+  .notes-privacy{
+    font-size:.85rem;color:rgba(59,42,30,0.5);margin-top:-8px;margin-bottom:20px;
+  }
+
+  /* FOOTER */
+  footer{
+    background:var(--stone);color:rgba(59,42,30,0.75);
+    padding:48px 24px 60px;
+    border-top:1px solid var(--line);
+  }
+  footer h3{color:var(--river-deep);font-size:1.2rem;margin-bottom:14px;}
+  footer ul{padding-left:18px;margin:0;font-size:.95rem;line-height:1.8;}
+  footer .credit{margin-top:36px;font-size:.82rem;color:rgba(59,42,30,0.45);font-family:'IBM Plex Mono',monospace;}
+
+  @media (max-width:720px){
+    .flight-card{grid-template-columns:1fr;}
+    .weather-grid{grid-template-columns:1fr;}
+    .stay-grid{grid-template-columns:1fr;}
+    .compare-grid{grid-template-columns:1fr;}
+    .beach-compare{grid-template-columns:1fr;}
+    nav.subnav ul{gap:14px;}
+    nav.subnav a{font-size:11px;}
+    .route-strip{flex-wrap:wrap;}
+    header.hero{padding-top:56px;}
+    .trip-switcher .label{display:none;}
+    .trip-tab{padding:14px 12px 12px;font-size:13px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- TOP-LEVEL TRIP SWITCHER -->
+<div class="trip-switcher">
+  <div class="wrap">
+    <span class="label">Two itineraries</span>
+    <button class="trip-tab active" data-panel="panel-ba">Bosnia & Herzegovina</button>
+    <button class="trip-tab" data-panel="panel-ro">Romania</button>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PANEL: BOSNIA & HERZEGOVINA                                   -->
+<!-- ============================================================ -->
+<div class="panel active" id="panel-ba">
+
+<nav class="subnav">
+  <div class="wrap">
+    <span class="brand">Bosnia & Herzegovina, 7 days</span>
+    <ul>
+      <li><a href="#map-ba">Map</a></li>
+      <li><a href="#flights-ba">Flights</a></li>
+      <li><a href="#weather-ba">Weather</a></li>
+      <li><a href="#stay-ba">Stay</a></li>
+      <li><a href="#around-ba">Getting Around</a></li>
+      <li><a href="#do-ba">Do</a></li>
+      <li><a href="#notes-ba">Notes</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="eyebrow">A car-light itinerary · culture, wine, hikes, food</span>
+    <h1>Bridges, Vineyards<br>& Waterfalls</h1>
+    <p class="sub">Seven days across Bosnia & Herzegovina for two friends — Sarajevo's old town and coffeehouses, then Mostar's river, vineyards, and karst waterfalls.</p>
+
+    <div class="route-strip">
+      <div class="stop">
+        <div class="city">Frankfurt</div>
+        <div class="code">FRA</div>
+      </div>
+      <div class="path">
+        <span class="track"></span>
+        <span class="dur">1h 45m<br>direct</span>
+        <span class="track"></span>
+      </div>
+      <div class="stop">
+        <div class="city">Sarajevo</div>
+        <div class="code">SJJ</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="arch-divider">
+  <svg viewBox="0 0 400 46" preserveAspectRatio="none">
+    <path d="M0,46 L0,20 Q50,0 100,20 Q150,40 200,20 Q250,0 300,20 Q350,40 400,20 L400,46 Z" fill="var(--stone)"/>
+  </svg>
+</div>
+
+<!-- MAP -->
+<section id="map-ba" class="alt">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kicker">The whole route at a glance</span>
+      <h2>Map</h2>
+      <p>Sarajevo down to Mostar and Herzegovina, with the optional Dubrovnik coast day shown dashed.</p>
+    </div>
+    <div class="map-card">
+      <div id="leaflet-ba" class="map-container"></div>
+    </div>
+    <div class="map-legend" id="legend-ba"></div>
+  </div>
+</section>
+
+<div class="arch-divider">
+  <svg viewBox="0 0 400 46" preserveAspectRatio="none">
+    <path d="M0,46 L0,20 Q50,0 100,20 Q150,40 200,20 Q250,0 300,20 Q350,40 400,20 L400,46 Z" fill="var(--paper)"/>
+  </svg>
+</div>
+
+<!-- FLIGHTS -->
+<section id="flights-ba">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kicker">Getting there</span>
+      <h2>Flights</h2>
+      <p>One route in, the same route out — everything in between is trains and buses (or a car, if you rent one — see Getting Around).</p>
+    </div>
+
+    <div class="flight-card">
+      <div class="item">
+        <div class="label">Outbound</div>
+        <div class="value">Sun, Sept 13 (or Mon, Sept 14) · FRA → SJJ</div>
+      </div>
+      <div class="item">
+        <div class="label">Return</div>
+        <div class="value">Sat, Sept 19 (or Sun, Sept 20) · SJJ → FRA</div>
+      </div>
+      <div class="item">
+        <div class="label">Airline</div>
+        <div class="value">Lufthansa, direct</div>
+      </div>
+      <div class="item">
+        <div class="label">Flight time</div>
+        <div class="value">1h 45m each way</div>
+      </div>
+      <div class="item">
+        <div class="label">Time difference</div>
+        <div class="value">None — same time zone as Frankfurt</div>
+      </div>
+      <div class="item">
+        <div class="label">Trip length</div>
+        <div class="value">6 or 7 nights, depending on dates picked</div>
+      </div>
+    </div>
+
+    <div class="flight-note">
+      <strong>Date options:</strong> flying out Sun the 13th and back Sat the 19th gives a clean 7-day trip (the itinerary below). Shifting a day later on both ends (14th out, 20th back) works just as well — Lufthansa runs this route daily. Book roughly 8 weeks ahead for the best fares.
+    </div>
+  </div>
+</section>
+
+<div class="arch-divider">
+  <svg viewBox="0 0 400 46" preserveAspectRatio="none">
+    <path d="M0,46 L0,20 Q50,0 100,20 Q150,40 200,20 Q250,0 300,20 Q350,40 400,20 L400,46 Z" fill="var(--stone)"/>
+  </svg>
+</div>
+
+<!-- WEATHER -->
+<section id="weather-ba" class="alt">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kicker">When you're going</span>
+      <h2>Weather</h2>
+      <p>Sarajevo sits in the hills and stays a few degrees cooler; Mostar, down in the Herzegovina basin, runs warmer and drier — good news for a Kravice swim in week's end.</p>
+    </div>
+
+    <div class="weather-grid" style="grid-template-columns:repeat(2,1fr); max-width:560px;">
+      <div class="weather-card">
+        <span class="tag">Harvest season</span>
+        <h3>Sarajevo</h3>
+        <div class="temp-row"><span class="city">Low / High</span><span class="range">11° / 22°C</span></div>
+        <p class="note">Mild days, cool evenings — bring a light jacket for the Trebević hike and evening café-hopping.</p>
+        <span class="best-badge">Sept 13–14</span>
+      </div>
+      <div class="weather-card">
+        <span class="tag">Harvest season</span>
+        <h3>Mostar</h3>
+        <div class="temp-row"><span class="city">Low / High</span><span class="range">13° / 27°C</span></div>
+        <p class="note">Warm and dry, September's least rainy stretch — good odds for Kravice and Blagaj, plus grape harvest at the vineyards.</p>
+        <span class="best-badge">Sept 15–19</span>
+      </div>
+    </div>
+    <div class="flight-note" style="margin-top:24px; max-width:560px;">
+      <strong>September in Herzegovina means harvest:</strong> if the vineyard's picking grapes during your visit, ask about joining — some estates let guests help or watch the pressing.
+    </div>
+  </div>
+</section>
+
+<div class="arch-divider">
+  <svg viewBox="0 0 400 46" preserveAspectRatio="none">
+    <path d="M0,46 L0,20 Q50,0 100,20 Q150,40 200,20 Q250,0 300,20 Q350,40 400,20 L400,46 Z" fill="var(--stone)"/>
+  </svg>
+</div>
+
+<!-- STAY -->
+<section id="stay-ba">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kicker">Two home bases, several options each</span>
+      <h2>Accommodation</h2>
+      <p>All of these are walkable to old-town life. The ones marked "in this itinerary" are what the Day-by-Day plan assumes — swap in any alternative without changing the rest of the trip.</p>
+    </div>
+
+    <div class="option-group">
+      <h3>Nights 1–2 · Sarajevo</h3>
+
+      <div class="option-item">
+        <div class="row">
+          <h4>Hotel Colors Inn</h4>
+          <div class="meta-tags"><span class="used">In this itinerary</span><span>Boutique</span></div>
+        </div>
+        <p>Small, central, right in Baščaršija. Consistently the best-reviewed boutique pick for location — everything (coffeehouses, Tunnel of Hope pickup, cable car base) is a 10–15 min walk.</p>
+      </div>
+
+      <div class="option-item">
+        <div class="row">
+          <h4>İsa Begov Hamam Hotel</h4>
+          <div class="meta-tags"><span>Splurge</span><span>Historic</span></div>
+        </div>
+        <p>A restored 15th-century Ottoman bathhouse turned luxury hotel. If you want one atmospheric splurge night in Sarajevo, this is it.</p>
+      </div>
+
+      <div class="option-item">
+        <div class="row">
+          <h4>Hotel Kandilj</h4>
+          <div class="meta-tags"><span>Budget-friendly</span><span>Quiet</span></div>
+        </div>
+        <p>Traditional Bosnian décor, a garden courtyard for morning coffee, still inside the old bazaar but on a quieter lane.</p>
+      </div>
+    </div>
+
+    <div class="option-group">
+      <h3>Nights 3–6 · Mostar / Blagaj</h3>
+
+      <div class="option-item">
+        <div class="row">
+          <h4>Hotel Kriva Ćuprija</h4>
+          <div class="meta-tags"><span class="used">In this itinerary</span><span>Central Mostar</span></div>
+        </div>
+        <p>Riverside, right by the Old Bridge, simple rooms with a terrace over the Radobolja stream. Very easy, very central — no taxi needed for evenings out.</p>
+      </div>
+
+      <div class="option-item">
+        <div class="row">
+          <h4>Muslibegović House</h4>
+          <div class="meta-tags"><span class="used">Alternative in this itinerary</span><span>Historic</span></div>
+        </div>
+        <p>A restored 17th-century Ottoman residence turned small hotel, part-museum, full of carved wood and courtyard gardens. Sleep inside the history rather than beside it.</p>
+      </div>
+
+      <div class="option-item">
+        <div class="row">
+          <h4>Hotel Buna</h4>
+          <div class="meta-tags"><span>In Blagaj</span><span>Riverside</span></div>
+        </div>
+        <p>A proper hotel right at the Buna spring in Blagaj, known for its trout dinners on the water. Puts you a short walk from the Tekija instead of a bus ride — trades Mostar's evening buzz for quiet and a view.</p>
+      </div>
+
+      <div class="option-item">
+        <div class="row">
+          <h4>Zen Zone Blagaj</h4>
+          <div class="meta-tags"><span>House / villa</span><span>Independent</span></div>
+        </div>
+        <p>A private house right on the Buna river in Blagaj with its own spring-fed access and a pool, full kitchen. More self-catered and independent than a hotel — good if you want a quieter, more nature-forward base and don't mind a short taxi into Mostar for dinners.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="arch-divider">
+  <svg viewBox="0 0 400 46" preserveAspectRatio="none">
+    <path d="M0,46 L0,20 Q50,0 100,20 Q150,40 200,20 Q250,0 300,20 Q350,40 400,20 L400,46 Z" fill="var(--stone)"/>
+  </svg>
+</div>
+
+<!-- GETTING AROUND -->
+<section id="around-ba" class="alt">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kicker">One decision to make</span>
+      <h2>Getting Around</h2>
+      <p>Public transport handles Sarajevo and the train down to Mostar easily. The only real question is whether to add a rental car for the Herzegovina half.</p>
+    </div>
+
+    <div class="compare-grid">
+      <div class="compare-card">
+        <span class="kicker">Option A</span>
+        <h3>Stay car-free</h3>
+        <ul>
+          <li>Train Sarajevo ↔ Mostar (scenic, no driving to think about)</li>
+          <li>Blagaj by local bus or short taxi</li>
+          <li>Kravice + Počitelj as a guided day tour</li>
+          <li>Vineyard tasting via pickup from Mostar</li>
+          <li>Simplest option — everything pre-arranged, nothing to park</li>
+        </ul>
+      </div>
+      <div class="compare-card highlight">
+        <span class="kicker">Option B</span>
+        <h3>Rent a car in Mostar only</h3>
+        <ul>
+          <li>Still take the train Sarajevo → Mostar — no need to drive that leg or deal with old-town parking</li>
+          <li>Pick up the car on arrival in Mostar (Day 3), drop off before the return train (Day 7)</li>
+          <li>Kravice, Blagaj, Počitelj and the vineyard all become 20–45 min self-timed drives</li>
+          <li>Opens up a Dubrovnik day trip on the coast (see below) without adding a night</li>
+          <li>Trade-off: one border crossing by car if you go to Croatia, and you do need to find parking in Mostar itself (a short walk from the old town, not inside it)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="beach-card">
+      <span class="kicker">The ocean question</span>
+      <h3>Neum or Dubrovnik</h3>
+      <p style="margin:0 0 4px;font-size:.98rem;color:rgba(59,42,30,0.75);">Bosnia has 20km of coastline at Neum; Croatia's Dubrovnik is further but far more scenic. Both are realistic add-ons if you rent the car in Mostar.</p>
+      <div class="beach-compare">
+        <div class="opt">
+          <span class="meta">~1.5hrs from Mostar · no border</span>
+          <h4>Neum</h4>
+          <p>Bosnia's only coastal town — modest pebble beaches, relaxed seafood lunches, no passport needed. Fine for an afternoon, not a highlight of the trip.</p>
+        </div>
+        <div class="opt">
+          <span class="meta">~2.5hrs from Mostar · Croatia border</span>
+          <h4>Dubrovnik</h4>
+          <p>Old town walls, turquoise Adriatic, a genuinely beautiful coast road along the way. With a car this fits as a long day trip instead of needing an overnight. Bring passports.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="arch-divider">
+  <svg viewBox="0 0 400 46" preserveAspectRatio="none">
+    <path d="M0,46 L0,20 Q50,0 100,20 Q150,40 200,20 Q250,0 300,20 Q350,40 400,20 L400,46 Z" fill="var(--paper)"/>
+  </svg>
+</div>
+
+<!-- DO -->
+<section id="do-ba">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kicker">Day by day</span>
+      <h2>Activities</h2>
+      <p>Trains and buses cover Sarajevo↔Mostar and the old towns themselves. Blagaj is a short local bus or taxi; Kravice and the vineyard visit run as guided half/full-day trips — normal practice here even for people with a car, since parking at both is limited anyway.</p>
+    </div>
+
+    <div class="timeline">
+
+      <div class="day">
+        <div class="day-arch"><span class="n">SEP</span><span class="d">13</span></div>
+        <div class="day-card">
+          <span class="loc">Sarajevo</span>
+          <h3>Arrive & settle into Baščaršija</h3>
+          <p>Land, check in, wander the old town as the light goes gold. First taste of Bosnian coffee — the ritual matters as much as the drink. Dinner: ćevapi or grilled trout at a family-run spot.</p>
+          <div class="tags"><span class="river">walk</span></div>
+        </div>
+      </div>
+
+      <div class="day">
+        <div class="day-arch"><span class="n">SEP</span><span class="d">14</span></div>
+        <div class="day-card">
+          <span class="loc">Sarajevo</span>
+          <h3>Tunnel of Hope & Trebević</h3>
+          <p>Morning at the Tunnel of Hope museum. Afternoon: cable car up Trebević, then an easy 1–2 hour walk back down through forest, passing the graffiti-covered 1984 Olympic bobsled track. Evening café-hopping.</p>
+          <div class="tags"><span class="copper">taxi/tram to tunnel</span><span class="river">cable car</span></div>
+        </div>
+      </div>
+
+      <div class="day">
+        <div class="day-arch"><span class="n">SEP</span><span class="d">15</span></div>
+        <div class="day-card">
+          <span class="loc">Sarajevo → Mostar</span>
+          <h3>Scenic train south</h3>
+          <p>The Sarajevo–Mostar train winds through the Neretva valley — sit on the right leaving Sarajevo for the best views. Check into Mostar, evening at the Old Bridge as the crowds thin out.</p>
+          <div class="tags"><span>train (or bus)</span></div>
+        </div>
+      </div>
+
+      <div class="day">
+        <div class="day-arch"><span class="n">SEP</span><span class="d">16</span></div>
+        <div class="day-card">
+          <span class="loc">Mostar</span>
+          <h3>Old town & a proper foodie day</h3>
+          <p>Slow morning through the cobbled bazaar, copper workshops, the bridge divers. Long lunch, an afternoon café crawl along the Radobolja stream, dinner with a bridge view.</p>
+          <div class="tags"><span class="river">walk</span></div>
+        </div>
+      </div>
+
+      <div class="day">
+        <div class="day-arch"><span class="n">SEP</span><span class="d">17</span></div>
+        <div class="day-card">
+          <span class="loc">Blagaj + a vineyard</span>
+          <h3>A river monastery, then a tasting</h3>
+          <p>Morning: local bus or short taxi to Blagaj Tekija, a 16th-century Sufi monastery built into the cliff at the source of the Buna river — walk the riverside path, lunch on the water. Afternoon: a nearby winery (Vukoje, Škegro, or Andrija) for a Žilavka and Blatina tasting — most will arrange pickup from Mostar.</p>
+          <div class="tags"><span class="copper">bus/taxi</span><span>winery pickup</span></div>
+        </div>
+      </div>
+
+      <div class="day">
+        <div class="day-arch"><span class="n">SEP</span><span class="d">18</span></div>
+        <div class="day-card">
+          <span class="loc">Kravice Waterfalls + Počitelj</span>
+          <h3>Swim day</h3>
+          <p>No useful public bus reaches Kravice, so this one's a small-group day tour from Mostar — usually bundled with Počitelj, a preserved Ottoman fortress village, on the way back. Go for an early departure and bring swimwear; the falls are at their best before midday.</p>
+          <div class="tags"><span>guided day tour</span></div>
+        </div>
+      </div>
+
+      <div class="day">
+        <div class="day-arch"><span class="n">SEP</span><span class="d">19</span></div>
+        <div class="day-card">
+          <span class="loc">Mostar → Sarajevo → home</span>
+          <h3>One last coffee, then the train back</h3>
+          <p>Slow final morning — one more café, maybe a last look at the bridge. Train back to Sarajevo, connect to your evening flight to Frankfurt.</p>
+          <div class="tags"><span>train</span><span>flight SJJ → FRA</span></div>
+        </div>
+      </div>
+
+      <div class="day">
+        <div class="day-arch" style="background:var(--river-deep);"><span class="n">OPT</span><span class="d">+1</span></div>
+        <div class="day-card" style="border-style:dashed;border-color:rgba(226,118,47,0.4);">
+          <span class="loc">Dubrovnik, Croatia — optional, needs a car</span>
+          <h3>Add a coast day</h3>
+          <p>If you rent a car for the Herzegovina leg, slot this in before Day 7: a ~2.5hr drive along the coast road to Dubrovnik's old town and city walls, then back to Mostar by evening. Bring passports for the border. Without a car, this becomes an overnight trip via direct bus (~3.5hrs each way) — better added as an extra night than squeezed into the week above.</p>
+          <div class="tags"><span class="river">self-drive</span><span>or overnight by bus</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<div class="arch-divider">
+  <svg viewBox="0 0 400 46" preserveAspectRatio="none">
+    <path d="M0,46 L0,20 Q50,0 100,20 Q150,40 200,20 Q250,0 300,20 Q350,40 400,20 L400,46 Z" fill="var(--stone)"/>
+  </svg>
+</div>
+
+<!-- NOTES & LINKS -->
+<section id="notes-ba" class="alt">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kicker">Your shared scratchpad</span>
+      <h2>Notes & Links</h2>
+      <p>Jot anything down, or save hotel/restaurant links you're considering. Saved automatically as you type.</p>
+    </div>
+
+    <div class="notes-card">
+      <label class="notes-label" for="ba-notes-text">Trip notes</label>
+      <textarea id="ba-notes-text" class="notes-textarea" placeholder="e.g. check if Hotel Buna has a room with a river view for those dates..."></textarea>
+      <div class="notes-status" id="ba-notes-status"></div>
+    </div>
+
+    <div class="links-card">
+      <label class="notes-label">Hotel & restaurant links you're considering</label>
+      <div class="link-form">
+        <input id="ba-link-name" type="text" placeholder="Name (e.g. Hotel Buna)">
+        <input id="ba-link-url" type="text" placeholder="Paste a link">
+        <button id="ba-link-add" type="button">Add</button>
+      </div>
+      <ul class="link-list" id="ba-link-list"></ul>
+      <p class="notes-privacy">Visible to anyone with this page's link.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <h3>Practical notes</h3>
+    <ul>
+      <li>Currency is the convertible mark (BAM) — carry small notes, bus counters and drivers are usually cash-only.</li>
+      <li>Buy Sarajevo–Mostar train/bus tickets same-day at the station; no need to book ahead outside festival weeks.</li>
+      <li>Check the train timetable the day before — it doesn't run every day year-round, so have the bus as a backup.</li>
+      <li>Book the Kravice day tour and vineyard tasting a day or two ahead in peak season (July–August, less needed in June/September).</li>
+      <li>Comfortable shoes throughout — cobblestones in both old towns, uneven paths at Blagaj and Kravice.</li>
+    </ul>
+    <div class="credit">Built for a week of good coffee, better wine, and no time spent looking for parking.</div>
+  </div>
+</footer>
+
+</div><!-- /panel-ba -->
+
+<!-- ============================================================ -->
+<!-- PANEL: ROMANIA                                                -->
+<!-- ============================================================ -->
+<div class="panel" id="panel-ro">
+
+<nav class="subnav">
+  <div class="wrap">
+    <span class="brand">Romania, 7 days</span>
+    <ul>
+      <li><a href="#map-ro">Map</a></li>
+      <li><a href="#flights-ro">Flights</a></li>
+      <li><a href="#weather-ro">Weather</a></li>
+      <li><a href="#stay-ro">Stay</a></li>
+      <li><a href="#around-ro">Getting Around</a></li>
+      <li><a href="#do-ro">Do</a></li>
+      <li><a href="#notes-ro">Notes</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="eyebrow">A car-light itinerary · culture, wine, hikes, food</span>
+    <h1>Citadels, Cellars<br>& Carpathian Air</h1>
+    <p class="sub">Seven days across Transylvania for two friends — Cluj's café scene, a limestone gorge hike, medieval Sighișoara, Saxon villages, and a Târnave Valley wine tasting.</p>
+
+    <div class="route-strip">
+      <div class="stop">
+        <div class="city">Frankfurt</div>
+        <div class="code">FRA</div>
+      </div>
+      <div class="path">
+        <span class="track"></span>
+        <span class="dur">2h 10m<br>direct</span>
+        <span class="track"></span>
+      </div>
+      <div class="stop">
+        <div class="city">Cluj-Napoca</div>
+        <div class="code">CLJ</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="arch-divider">
+  <svg viewBox="0 0 400 46" preserveAspectRatio="none">
+    <path d="M0,46 L0,20 Q50,0 100,20 Q150,40 200,20 Q250,0 300,20 Q350,40 400,20 L400,46 Z" fill="var(--stone)"/>
+  </svg>
+</div>
+
+<!-- MAP -->
+<section id="map-ro" class="alt">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kicker">The whole route at a glance</span>
+      <h2>Map</h2>
+      <p>Cluj-Napoca down through the Târnave valley to Sighișoara and the Saxon villages.</p>
+    </div>
+    <div class="map-card">
+      <div id="leaflet-ro" class="map-container"></div>
+    </div>
+    <div class="map-legend" id="legend-ro"></div>
+  </div>
+</section>
+
+<div class="arch-divider">
+  <svg viewBox="0 0 400 46" preserveAspectRatio="none">
+    <path d="M0,46 L0,20 Q50,0 100,20 Q150,40 200,20 Q250,0 300,20 Q350,40 400,20 L400,46 Z" fill="var(--paper)"/>
+  </svg>
+</div>
+
+<!-- FLIGHTS -->
+<section id="flights-ro">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kicker">Getting there</span>
+      <h2>Flights</h2>
+      <p>Same dates as the Bosnia option, into Transylvania's main gateway instead.</p>
+    </div>
+
+    <div class="flight-card">
+      <div class="item">
+        <div class="label">Outbound</div>
+        <div class="value">Sun, Sept 13 (or Mon, Sept 14) · FRA → CLJ</div>
+      </div>
+      <div class="item">
+        <div class="label">Return</div>
+        <div class="value">Sat, Sept 19 (or Sun, Sept 20) · CLJ → FRA</div>
+      </div>
+      <div class="item">
+        <div class="label">Airline</div>
+        <div class="value">Wizz Air or Animawings, direct</div>
+      </div>
+      <div class="item">
+        <div class="label">Flight time</div>
+        <div class="value">~2h 10m each way</div>
+      </div>
+      <div class="item">
+        <div class="label">Time difference</div>
+        <div class="value">Cluj-Napoca is 1 hour ahead of Frankfurt</div>
+      </div>
+      <div class="item">
+        <div class="label">Trip length</div>
+        <div class="value">6 or 7 nights, depending on dates picked</div>
+      </div>
+    </div>
+
+    <div class="flight-note">
+      <strong>Fewer direct departures than the Bosnia route:</strong> direct FRA–CLJ flights run only a few times a week, so confirm the exact days before locking in Sept 13/14. If the direct doesn't line up, a one-stop via Munich, Vienna, or Budapest on Lufthansa adds an hour or two but runs daily.
+    </div>
+  </div>
+</section>
+
+<div class="arch-divider">
+  <svg viewBox="0 0 400 46" preserveAspectRatio="none">
+    <path d="M0,46 L0,20 Q50,0 100,20 Q150,40 200,20 Q250,0 300,20 Q350,40 400,20 L400,46 Z" fill="var(--stone)"/>
+  </svg>
+</div>
+
+<!-- WEATHER -->
+<section id="weather-ro" class="alt">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kicker">When you're going</span>
+      <h2>Weather</h2>
+      <p>Transylvania's plateau keeps both towns close in temperature — cooler than Herzegovina, with crisp mornings well suited to a gorge hike and citadel walks.</p>
+    </div>
+
+    <div class="weather-grid" style="grid-template-columns:repeat(2,1fr); max-width:560px;">
+      <div class="weather-card">
+        <span class="tag">Harvest season</span>
+        <h3>Cluj-Napoca</h3>
+        <div class="temp-row"><span class="city">Low / High</span><span class="range">9° / 21°C</span></div>
+        <p class="note">Sunny and dry more often than not — a light jacket for the evening covers you, and the Cheile Turzii hike stays comfortable all day.</p>
+        <span class="best-badge">Sept 13–15</span>
+      </div>
+      <div class="weather-card">
+        <span class="tag">Harvest season</span>
+        <h3>Sighișoara</h3>
+        <div class="temp-row"><span class="city">Low / High</span><span class="range">10° / 21°C</span></div>
+        <p class="note">Nearly identical to Cluj — mild days on the citadel walls, cool enough at night that the guesthouse's thick stone walls earn their keep.</p>
+        <span class="best-badge">Sept 15–19</span>
+      </div>
+    </div>
+    <div class="flight-note" style="margin-top:24px; max-width:560px;">
+      <strong>September in the Târnave Valley means harvest:</strong> Jidvei and the smaller Batoș-area producers are usually picking mid-to-late September — a good excuse to ask about a cellar tour timed around it.
+    </div>
+  </div>
+</section>
+
+<div class="arch-divider">
+  <svg viewBox="0 0 400 46" preserveAspectRatio="none">
+    <path d="M0,46 L0,20 Q50,0 100,20 Q150,40 200,20 Q250,0 300,20 Q350,40 400,20 L400,46 Z" fill="var(--stone)"/>
+  </svg>
+</div>
+
+<!-- STAY -->
+<section id="stay-ro">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kicker">Two home bases, several options each</span>
+      <h2>Accommodation</h2>
+      <p>A modern city base, then four nights inside an actual medieval citadel. The ones marked "in this itinerary" are what the Day-by-Day plan assumes.</p>
+    </div>
+
+    <div class="option-group">
+      <h3>Nights 1–2 · Cluj-Napoca</h3>
+
+      <div class="option-item">
+        <div class="row">
+          <h4>Capitolina City Chic Hotel</h4>
+          <div class="meta-tags"><span class="used">In this itinerary</span><span>Old Town</span></div>
+        </div>
+        <p>In the historic core near the botanical garden, an easy walk to Piața Unirii and the café strip. Best balance of location and comfort for a two-night city stay.</p>
+      </div>
+
+      <div class="option-item">
+        <div class="row">
+          <h4>Hotel Beyfin</h4>
+          <div class="meta-tags"><span>Central</span><span>Comfort</span></div>
+        </div>
+        <p>A five-minute walk from the Dormition of the Theotokos Cathedral and Unirii Square — modern, reliable, slightly more polished than the boutique guesthouses.</p>
+      </div>
+
+      <div class="option-item">
+        <div class="row">
+          <h4>Alex&George Boutique Hotel</h4>
+          <div class="meta-tags"><span>Boutique</span><span>Quieter</span></div>
+        </div>
+        <p>A short drive or tram ride from the old town, with a more homey, design-led feel than the bigger hotels — good if you don't mind trading a few minutes' walk for character.</p>
+      </div>
+    </div>
+
+    <div class="option-group">
+      <h3>Nights 3–6 · Sighișoara</h3>
+
+      <div class="option-item">
+        <div class="row">
+          <h4>Casa cu Cerb</h4>
+          <div class="meta-tags"><span class="used">In this itinerary</span><span>Historic</span></div>
+        </div>
+        <p>A heritage building right by the Clock Tower, inside the citadel walls. Creaky floors and thick stone in the best way — you're steps from everything once the day-trippers leave.</p>
+      </div>
+
+      <div class="option-item">
+        <div class="row">
+          <h4>Casa Baroca</h4>
+          <div class="meta-tags"><span>Budget-friendly</span><span>In the citadel</span></div>
+        </div>
+        <p>Right in the center of the action for a fraction of the price. Note: no car access to the door, so you'd use the public paid parking outside the walls if you rent a car in Sighișoara.</p>
+      </div>
+
+      <div class="option-item">
+        <div class="row">
+          <h4>Casa Soare</h4>
+          <div class="meta-tags"><span>Quiet</span><span>Courtyard</span></div>
+        </div>
+        <p>A grapevine-covered courtyard just outside the citadel proper, closer to the train station — a good pick if you're arriving late or want a calmer night's sleep.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="arch-divider">
+  <svg viewBox="0 0 400 46" preserveAspectRatio="none">
+    <path d="M0,46 L0,20 Q50,0 100,20 Q150,40 200,20 Q250,0 300,20 Q350,40 400,20 L400,46 Z" fill="var(--stone)"/>
+  </svg>
+</div>
+
+<!-- GETTING AROUND -->
+<section id="around-ro" class="alt">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kicker">One decision to make</span>
+      <h2>Getting Around</h2>
+      <p>Cluj and Sighișoara connect easily by train or bus. The question is whether a rental car is worth it for reaching the Saxon villages and the vineyard on your own schedule.</p>
+    </div>
+
+    <div class="compare-grid">
+      <div class="compare-card">
+        <span class="kicker">Option A</span>
+        <h3>Stay car-free</h3>
+        <ul>
+          <li>Bus Cluj ↔ Sighișoara (~2h15m, several daily) or the slower train (~3h, scenic)</li>
+          <li>Cheile Turzii by minibus/maxitaxi from Cluj (~40 min to Turda, then a short local hop)</li>
+          <li>Biertan + Viscri as a guided day tour — the direct public transport between Saxon villages is thin</li>
+          <li>Jidvei winery tasting via a pre-booked transfer or small-group tour from Sighișoara</li>
+          <li>Simplest option — no parking to think about in either old town</li>
+        </ul>
+      </div>
+      <div class="compare-card highlight">
+        <span class="kicker">Option B</span>
+        <h3>Rent a car in Sighișoara only</h3>
+        <ul>
+          <li>Still take the bus or train Cluj → Sighișoara — skip driving that leg or parking in Cluj's center</li>
+          <li>Pick up the car on arrival in Sighișoara (Day 3), drop off before heading back to Cluj (Day 7)</li>
+          <li>Biertan, Viscri, and Jidvei all become flexible 30–50 min drives, at your own pace</li>
+          <li>Opens the door to a detour toward Sibiu or the Făgăraș foothills if you want a bigger hike</li>
+          <li>Trade-off: village roads are narrow and occasionally unpaved near Viscri — nothing serious, just slow down</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="arch-divider">
+  <svg viewBox="0 0 400 46" preserveAspectRatio="none">
+    <path d="M0,46 L0,20 Q50,0 100,20 Q150,40 200,20 Q250,0 300,20 Q350,40 400,20 L400,46 Z" fill="var(--paper)"/>
+  </svg>
+</div>
+
+<!-- DO -->
+<section id="do-ro">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kicker">Day by day</span>
+      <h2>Activities</h2>
+      <p>Trains and buses handle the Cluj–Sighișoara leg easily. The Saxon villages and the vineyard run best as a guided minibus day or a rented car — public routes between them are built for locals' schedules, not tourists'.</p>
+    </div>
+
+    <div class="timeline">
+
+      <div class="day">
+        <div class="day-arch"><span class="n">SEP</span><span class="d">13</span></div>
+        <div class="day-card">
+          <span class="loc">Cluj-Napoca</span>
+          <h3>Arrive & settle near Piața Unirii</h3>
+          <p>Land, check in, wander to St. Michael's Church and the main square as the evening crowd fills the terraces. Dinner at a modern Romanian bistro — Cluj's food scene punches well above its size.</p>
+          <div class="tags"><span class="river">walk</span></div>
+        </div>
+      </div>
+
+      <div class="day">
+        <div class="day-arch"><span class="n">SEP</span><span class="d">14</span></div>
+        <div class="day-card">
+          <span class="loc">Cheile Turzii Gorge</span>
+          <h3>Limestone canyon hike</h3>
+          <p>A minibus to Turda (~40 min), then a moderate day hike through a dramatic limestone gorge — cliffs, a river crossing or two, no crowds outside peak weekends. On the way back, a quick stop at the Turda Salt Mine, an old mine turned surreal underground amphitheater, if you have energy left.</p>
+          <div class="tags"><span class="copper">minibus</span><span class="river">day hike</span></div>
+        </div>
+      </div>
+
+      <div class="day">
+        <div class="day-arch"><span class="n">SEP</span><span class="d">15</span></div>
+        <div class="day-card">
+          <span class="loc">Cluj-Napoca → Sighișoara</span>
+          <h3>Onward to the citadel</h3>
+          <p>Bus or train east into the Târnava valley (~2.5–3hrs). Check into your guesthouse inside the walls, then climb the covered wooden staircase to the hilltop church as the light turns gold.</p>
+          <div class="tags"><span>bus (or train)</span></div>
+        </div>
+      </div>
+
+      <div class="day">
+        <div class="day-arch"><span class="n">SEP</span><span class="d">16</span></div>
+        <div class="day-card">
+          <span class="loc">Sighișoara</span>
+          <h3>Citadel & a proper foodie day</h3>
+          <p>Slow morning through the cobbled citadel — the Clock Tower museum, Vlad the Impaler's birth house, the old weapons' guild towers along the walls. Long lunch, an afternoon café crawl, dinner on a terrace overlooking the lower town.</p>
+          <div class="tags"><span class="river">walk</span></div>
+        </div>
+      </div>
+
+      <div class="day">
+        <div class="day-arch"><span class="n">SEP</span><span class="d">17</span></div>
+        <div class="day-card">
+          <span class="loc">Biertan & Viscri</span>
+          <h3>Saxon fortified villages</h3>
+          <p>A guided minibus day (or your rental car) to Biertan's UNESCO-listed fortified church, then on to Viscri — a preserved Saxon village with a working blacksmith and a guesthouse King Charles III still visits. Slow, rural, genuinely quiet.</p>
+          <div class="tags"><span>guided day tour</span><span class="river">or self-drive</span></div>
+        </div>
+      </div>
+
+      <div class="day">
+        <div class="day-arch"><span class="n">SEP</span><span class="d">18</span></div>
+        <div class="day-card">
+          <span class="loc">Târnave Valley vineyard</span>
+          <h3>A cellar tour and a slow afternoon</h3>
+          <p>Jidvei, Romania's largest and most polished producer, sits about 45 minutes from Sighișoara — a tasting of Fetească Albă and Fetească Regală among rolling vine-covered hills. Smaller producers near Batoș (Liliac) are an alternative if you'd rather a boutique, family-run feel.</p>
+          <div class="tags"><span class="copper">transfer/self-drive</span><span>tasting</span></div>
+        </div>
+      </div>
+
+      <div class="day">
+        <div class="day-arch"><span class="n">SEP</span><span class="d">19</span></div>
+        <div class="day-card">
+          <span class="loc">Sighișoara → Cluj-Napoca → home</span>
+          <h3>One last coffee, then the road back</h3>
+          <p>Slow final morning on the citadel walls, one more coffee below the Clock Tower. Bus or train back to Cluj, connecting to your evening flight to Frankfurt.</p>
+          <div class="tags"><span>bus (or train)</span><span>flight CLJ → FRA</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<div class="arch-divider">
+  <svg viewBox="0 0 400 46" preserveAspectRatio="none">
+    <path d="M0,46 L0,20 Q50,0 100,20 Q150,40 200,20 Q250,0 300,20 Q350,40 400,20 L400,46 Z" fill="var(--stone)"/>
+  </svg>
+</div>
+
+<!-- NOTES & LINKS -->
+<section id="notes-ro" class="alt">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="kicker">Your shared scratchpad</span>
+      <h2>Notes & Links</h2>
+      <p>Jot anything down, or save hotel/restaurant links you're considering. Saved automatically as you type.</p>
+    </div>
+
+    <div class="notes-card">
+      <label class="notes-label" for="ro-notes-text">Trip notes</label>
+      <textarea id="ro-notes-text" class="notes-textarea" placeholder="e.g. check if Casa cu Cerb has a room with a Clock Tower view..."></textarea>
+      <div class="notes-status" id="ro-notes-status"></div>
+    </div>
+
+    <div class="links-card">
+      <label class="notes-label">Hotel & restaurant links you're considering</label>
+      <div class="link-form">
+        <input id="ro-link-name" type="text" placeholder="Name (e.g. Casa Soare)">
+        <input id="ro-link-url" type="text" placeholder="Paste a link">
+        <button id="ro-link-add" type="button">Add</button>
+      </div>
+      <ul class="link-list" id="ro-link-list"></ul>
+      <p class="notes-privacy">Visible to anyone with this page's link.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <h3>Practical notes</h3>
+    <ul>
+      <li>Currency is the Romanian leu (RON) — useful to carry cash in the Saxon villages, where cards aren't always accepted.</li>
+      <li>Buy Cluj–Sighișoara bus or train tickets a day ahead or same-day; the bus is faster (~2h15m) than the train (~3h) on this route.</li>
+      <li>Book the Biertan/Viscri day tour and the vineyard tasting a few days ahead — both run smaller groups than the Bosnia equivalents.</li>
+      <li>Romanian is a Romance language — if either of you speaks French, Italian, or Spanish, menus and signs will be easier than expected.</li>
+      <li>Comfortable shoes throughout — cobblestones in both old towns, uneven terrain on the Cheile Turzii trail.</li>
+    </ul>
+    <div class="credit">Built for citadel walls at sunset, cellar tastings, and slow village lunches.</div>
+  </div>
+</footer>
+
+</div><!-- /panel-ro -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+  const tabs = document.querySelectorAll('.trip-tab');
+  const panels = document.querySelectorAll('.panel');
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'));
+      panels.forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById(tab.dataset.panel).classList.add('active');
+      window.scrollTo({top: 0, behavior: 'instant'});
+      if (tab.dataset.panel === 'panel-ba') initMapBA(); else initMapRO();
+    });
+  });
+
+  // --- Trip maps (Leaflet + OpenStreetMap tiles) ---
+  const baStops = [
+    { name: 'Sarajevo', lat: 43.8563, lng: 18.4131, day: 'Days 1–2', desc: 'Old town, coffeehouses, Tunnel of Hope' },
+    { name: 'Mostar', lat: 43.3438, lng: 17.8078, day: 'Days 3–4, 6–7', desc: 'Old Bridge, café days' },
+    { name: 'Blagaj', lat: 43.2537, lng: 17.8981, day: 'Day 5', desc: 'Tekija, river walk, vineyard' },
+    { name: 'Kravice Waterfalls', lat: 43.1156, lng: 17.6081, day: 'Day 6', desc: 'Swim day' },
+    { name: 'Počitelj', lat: 43.1595, lng: 17.8189, day: 'Day 6', desc: 'Ottoman fortress village' },
+    { name: 'Dubrovnik', lat: 42.6507, lng: 18.0944, day: 'Optional', desc: 'Coast day — needs a car', optional: true }
+  ];
+  const roStops = [
+    { name: 'Cluj-Napoca', lat: 46.7712, lng: 23.6236, day: 'Days 1–2', desc: 'Cafés, old town' },
+    { name: 'Cheile Turzii (Turda)', lat: 46.5738, lng: 23.7867, day: 'Day 2', desc: 'Gorge hike' },
+    { name: 'Sighișoara', lat: 46.2197, lng: 24.7925, day: 'Days 3–4, 7', desc: 'Medieval citadel' },
+    { name: 'Biertan', lat: 46.1219, lng: 24.7961, day: 'Day 5', desc: 'Fortified church' },
+    { name: 'Viscri', lat: 46.0577, lng: 25.0917, day: 'Day 5', desc: 'Saxon village' },
+    { name: 'Jidvei (Târnave Valley)', lat: 46.0219, lng: 24.2331, day: 'Day 6', desc: 'Vineyard tasting' }
+  ];
+
+  function buildMap(containerId, legendId, stops) {
+    const map = L.map(containerId, { scrollWheelZoom: false });
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 18
+    }).addTo(map);
+
+    const bounds = [];
+    const legend = document.getElementById(legendId);
+    legend.innerHTML = '';
+
+    stops.forEach((s, i) => {
+      const icon = L.divIcon({
+        className: 'trip-marker-wrap',
+        html: `<div class="trip-marker${s.optional ? ' optional' : ''}">${i + 1}</div>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14]
+      });
+      L.marker([s.lat, s.lng], { icon }).addTo(map)
+        .bindPopup(`<strong>${s.name}</strong><span class="pop-day">${s.day}</span>${s.desc}`);
+      bounds.push([s.lat, s.lng]);
+
+      const chip = document.createElement('div');
+      chip.className = 'stop' + (s.optional ? ' optional' : '');
+      chip.innerHTML = `<span class="num">${i + 1}</span><span>${s.name}</span>`;
+      legend.appendChild(chip);
+    });
+
+    map.fitBounds(bounds, { padding: [28, 28] });
+    return map;
+  }
+
+  let mapBA = null, mapRO = null;
+  function initMapBA() {
+    if (mapBA) { setTimeout(() => mapBA.invalidateSize(), 50); return; }
+    mapBA = buildMap('leaflet-ba', 'legend-ba', baStops);
+  }
+  function initMapRO() {
+    if (mapRO) { setTimeout(() => mapRO.invalidateSize(), 50); return; }
+    mapRO = buildMap('leaflet-ro', 'legend-ro', roStops);
+  }
+  // Bosnia panel is active by default on load
+  window.addEventListener('load', () => { initMapBA(); });
+
+
+  // --- Storage helper: tries the artifact's shared storage first,
+  // falls back to this browser's localStorage if unavailable. ---
+  async function loadValue(key) {
+    try {
+      if (window.storage) {
+        const r = await window.storage.get(key, true);
+        return r ? r.value : null;
+      }
+    } catch (e) { /* key not found or storage unavailable */ }
+    try { return localStorage.getItem(key); } catch (e) { return null; }
+  }
+  async function saveValue(key, value) {
+    try {
+      if (window.storage) {
+        await window.storage.set(key, value, true);
+        return;
+      }
+    } catch (e) { /* fall through to local */ }
+    try { localStorage.setItem(key, value); } catch (e) { /* give up quietly */ }
+  }
+
+  function setupNotes(prefix) {
+    const textarea = document.getElementById(prefix + '-notes-text');
+    const status = document.getElementById(prefix + '-notes-status');
+    const linkNameInput = document.getElementById(prefix + '-link-name');
+    const linkUrlInput = document.getElementById(prefix + '-link-url');
+    const addBtn = document.getElementById(prefix + '-link-add');
+    const list = document.getElementById(prefix + '-link-list');
+    if (!textarea) return;
+
+    const notesKey = prefix + '-trip-notes';
+    const linksKey = prefix + '-hotel-links';
+    let saveTimer = null;
+
+    loadValue(notesKey).then(v => { if (v) textarea.value = v; });
+
+    textarea.addEventListener('input', () => {
+      status.textContent = 'saving…';
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(async () => {
+        await saveValue(notesKey, textarea.value);
+        status.textContent = 'saved';
+        setTimeout(() => { status.textContent = ''; }, 1500);
+      }, 500);
+    });
+
+    function renderLinks(links) {
+      list.innerHTML = '';
+      if (!links.length) {
+        list.innerHTML = '<li class="link-empty" style="background:none;border:none;padding-left:0;">No links saved yet.</li>';
+        return;
+      }
+      links.forEach((link, i) => {
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.href = link.url.startsWith('http') ? link.url : 'https://' + link.url;
+        a.textContent = link.name || link.url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        const del = document.createElement('button');
+        del.textContent = '×';
+        del.title = 'Remove';
+        del.addEventListener('click', async () => {
+          links.splice(i, 1);
+          await saveValue(linksKey, JSON.stringify(links));
+          renderLinks(links);
+        });
+        li.appendChild(a);
+        li.appendChild(del);
+        list.appendChild(li);
+      });
+    }
+
+    let currentLinks = [];
+    loadValue(linksKey).then(v => {
+      try { currentLinks = v ? JSON.parse(v) : []; } catch (e) { currentLinks = []; }
+      renderLinks(currentLinks);
+    });
+
+    addBtn.addEventListener('click', async () => {
+      const name = linkNameInput.value.trim();
+      const url = linkUrlInput.value.trim();
+      if (!url) return;
+      currentLinks.push({ name, url });
+      await saveValue(linksKey, JSON.stringify(currentLinks));
+      renderLinks(currentLinks);
+      linkNameInput.value = '';
+      linkUrlInput.value = '';
+      linkNameInput.focus();
+    });
+    linkUrlInput.addEventListener('keydown', e => { if (e.key === 'Enter') addBtn.click(); });
+  }
+
+  setupNotes('ba');
+  setupNotes('ro');
+</script>
+
+</body>
+</html>
